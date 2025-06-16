@@ -69,9 +69,11 @@ O backend é flexível, mas para uma análise correta, o arquivo CSV deve conter
     * *Nomes que o sistema reconhece:* `descricao`, `descrição`, `historico`, `histórico`, `description`.
 
 * **Valor da Transação:** O sistema pode lidar com duas estruturas diferentes:
+
     * **Opção 1: Coluna Única de Valor**
         * Uma só coluna com os valores, onde receitas são positivas (ex: `5000.00`) e despesas são negativas (ex: `-250.50`).
         * *Nomes que o sistema reconhece:* `valor`, `value`, `amount`, `montante`.
+   
     * **Opção 2: Colunas Separadas de Crédito e Débito**
         * Duas colunas distintas, uma para entradas (créditos) e outra para saídas (débitos).
         * *Nomes para crédito:* `crédito`, `credito`, `credit`.
