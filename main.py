@@ -4,18 +4,9 @@ import seaborn as sns
 from datetime import datetime
 import os
 from fpdf import FPDF
-from flask import Flask, request, jsonify, send_from_directory
-from werkzeug.utils import secure_filename # Para segurança no upload
-import flet as ft
-
-def main(page: ft.Page):
-    pass
-
-ft.app(target=main)
-
-
+from werkzeug.utils import secure_filename
+# pip install -r requirements.txt ----- use isso para baixar todas as bibliotecas de uma vez
 app = Flask(__name__)
-
 
 UPLOAD_FOLDER = 'uploads'
 OUTPUT_FOLDER = 'relatorios_gerados'
@@ -46,14 +37,14 @@ class CarteiraFinanceira:
 
     def importar_csv(self, caminho_do_arquivo):
         try:
-            # Especificar o separador e o encoding pode ajudar a evitar erros
+         
             df = pd.read_csv(caminho_do_arquivo, sep=',', encoding='utf-8')
             for _, row in df.iterrows():
                 valor = float(row['valor'])
                 transacao = Receita(row['data'], row['descricao'], valor) if valor > 0 else Despesa(row['data'], row['descricao'], valor)
                 self.transacoes.append(transacao)
         except Exception as e:
-            # Se der erro, lança uma exceção para a API tratar
+            # em de erro, lança uma exceção para a API tratar
             raise ValueError(f"Erro ao processar o CSV: {e}")
 
     def obter_dataframe(self):
@@ -77,7 +68,7 @@ class RelatorioFinanceiro:
         self.df['Mês'] = self.df['Data'].dt.to_period('M').astype(str)
         resumo = self.df.groupby(['Mês', 'Tipo'])['Valor'].sum().unstack().fillna(0)
         
-        # Gráfico de barras
+        #gráfico de barras
         resumo.plot(kind='bar', stacked=False, figsize=(10, 6))
         plt.title('Receitas vs Despesas por Mês')
         plt.ylabel('Valor (R$)'); plt.xlabel('Mês'); plt.xticks(rotation=45)
@@ -86,7 +77,7 @@ class RelatorioFinanceiro:
         plt.savefig(caminho_grafico_barras)
         plt.close()
 
-        # Gráfico de pizza
+        #gráfico de pizza
         tipos = self.df.groupby('Tipo')['Valor'].sum().abs()
         tipos.plot(kind='pie', autopct='%1.1f%%', figsize=(8, 8))
         plt.title('Distribuição de Receitas e Despesas'); plt.ylabel('')
@@ -125,7 +116,7 @@ class RelatorioFinanceiro:
 @app.route('/analisar', methods=['POST'])
 def analisar_planilha():
     """Endpoint principal que recebe a planilha e retorna a análise."""
-    # 1. Verifica se o arquivo foi enviado
+    # verificacao se o arquivo foi enviado
     if 'planilha' not in request.files:
         return jsonify({"erro": "Nenhum arquivo enviado."}), 400
     
@@ -136,13 +127,13 @@ def analisar_planilha():
     if file:
         # 2. Salva o arquivo de forma segura
         filename = secure_filename(file.filename)
-        # Cria um ID único para esta requisição para evitar sobreposição de arquivos
+        #cria um ID unico para cada requisição para evitar sobreposição de arquivos
         id_unico = str(int(datetime.now().timestamp()))
         caminho_salvo = os.path.join(UPLOAD_FOLDER, f"{id_unico}_{filename}")
         file.save(caminho_salvo)
 
         try:
-            # 3. Processa o arquivo usando suas classes
+            #processa o arquivo usando suas classes
             carteira = CarteiraFinanceira()
             carteira.importar_csv(caminho_salvo)
             
@@ -177,7 +168,7 @@ def servir_relatorio(path):
     return send_from_directory(OUTPUT_FOLDER, path)
 
 
-    # bloco que executa
+    # executa a api
 if __name__ == '__main__':
 
     app.run(debug=True, port=5000)
