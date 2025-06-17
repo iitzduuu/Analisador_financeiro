@@ -4,6 +4,7 @@ import seaborn as sns
 from datetime import datetime
 import os
 from fpdf import FPDF
+from flask import Flask
 from werkzeug.utils import secure_filename
 # pip install -r requirements.txt ----- use isso para baixar todas as bibliotecas de uma vez
 app = Flask(__name__)
