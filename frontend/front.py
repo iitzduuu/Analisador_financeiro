@@ -4,7 +4,6 @@ import time
 
 API_URL = "http://127.0.0.1:5000"
 
-# CLASSE PRINCIPAL DA APLICAÇÃO - SEM HERDAR DE USERCONTROL
 class AnalisadorApp:
     def __init__(self, page: ft.Page):
         self.page = page
@@ -60,6 +59,30 @@ class AnalisadorApp:
             ),
             elevation=2, shadow_color="#E0E0E0"
         )
+        
+        self.kpi_receita_valor = ft.Text(size=24, weight=ft.FontWeight.BOLD)
+        self.kpi_despesa_valor = ft.Text(size=24, weight=ft.FontWeight.BOLD)
+        self.kpi_saldo_valor = ft.Text(size=24, weight=ft.FontWeight.BOLD)
+        self.kpi_poupanca_valor = ft.Text(size=24, weight=ft.FontWeight.BOLD)
+
+        def criar_card_kpi(titulo, valor_text_widget, icone, cor_icone):
+            return ft.Container(
+                content=ft.Column([
+                    ft.Row([ft.Icon(icone, color=cor_icone), ft.Text(titulo, weight=ft.FontWeight.BOLD, color="#757575")]),
+                    valor_text_widget
+                ], alignment=ft.MainAxisAlignment.CENTER, horizontal_alignment=ft.CrossAxisAlignment.CENTER, spacing=5),
+                padding=20, border_radius=8, border=ft.border.all(1, "#E0E0E0"), width=170, alignment=ft.alignment.center
+            )
+
+        self.kpi_row = ft.Row(
+            spacing=20, alignment=ft.MainAxisAlignment.CENTER,
+            controls=[
+                criar_card_kpi("Receita Total", self.kpi_receita_valor, "arrow_upward_rounded", "#66BB6A"),
+                criar_card_kpi("Despesa Total", self.kpi_despesa_valor, "arrow_downward_rounded", "#EF5350"),
+                criar_card_kpi("Saldo Final", self.kpi_saldo_valor, "account_balance_wallet_rounded", "#42A5F5"),
+                criar_card_kpi("Taxa de Poupança", self.kpi_poupanca_valor, "savings_rounded", "#FFA726"),
+            ]
+        )
 
         self.tabela_resumo = ft.DataTable(
             column_spacing=30, heading_row_color="#E3F2FD",
@@ -71,12 +94,7 @@ class AnalisadorApp:
             ],
             rows=[],
         )
-        
-        self.grafico_categorias = ft.PieChart(
-            sections=[], sections_space=2, center_space_radius=50,
-            on_chart_event=self._on_chart_event, expand=True,
-        )
-
+        self.grafico_categorias = ft.PieChart(sections=[], sections_space=2, center_space_radius=50, on_chart_event=self._on_chart_event, expand=True)
         self.grafico_barras = ft.Image(src="", border_radius=ft.border_radius.all(8))
         self.grafico_pizza = ft.Image(src="", border_radius=ft.border_radius.all(8))
         self.link_pdf = ft.FilledButton("Baixar Relatório PDF Completo", url="", icon="picture_as_pdf", style=ft.ButtonStyle(shape=ft.RoundedRectangleBorder(radius=8)))
@@ -87,7 +105,9 @@ class AnalisadorApp:
                 content=ft.Column(
                     [
                         ft.Text("Resultados da Análise", size=22, weight=ft.FontWeight.W_600),
-                        ft.Divider(height=10), self.tabela_resumo,
+                        ft.Divider(height=15), self.kpi_row,
+                        ft.Divider(height=15),
+                        ft.Text("Resumo Mensal", size=18, weight=ft.FontWeight.W_600), self.tabela_resumo,
                         ft.Divider(height=20),
                         ft.Text("Despesas por Categoria", size=18, weight=ft.FontWeight.W_600),
                         ft.Container(content=self.grafico_categorias, height=350, padding=10),
@@ -127,7 +147,7 @@ class AnalisadorApp:
         for idx, section in enumerate(self.grafico_categorias.sections):
             if idx == e.section_index:
                 section.radius = 90
-                section.border_side = ft.BorderSide(3, "#424242") # Cor para borda do gráfico
+                section.border_side = ft.BorderSide(3, "#424242")
             else:
                 section.radius = 80
                 section.border_side = None
@@ -173,6 +193,13 @@ class AnalisadorApp:
                 self.status_text.value = "Análise concluída com sucesso!"
                 self.status_text.color = "#388E3C"
 
+                # Preenche KPIs
+                kpis = resultado.get("kpis", {}); receita_total = kpis.get("receita_total", 0); despesa_total = kpis.get("despesa_total", 0); saldo_final = kpis.get("saldo_final", 0); taxa_poupanca = kpis.get("taxa_poupanca", 0)
+                self.kpi_receita_valor.value = f"R$ {receita_total:,.2f}"; self.kpi_receita_valor.color = "#2E7D32"
+                self.kpi_despesa_valor.value = f"R$ {abs(despesa_total):,.2f}"; self.kpi_despesa_valor.color = "#C62828"
+                self.kpi_saldo_valor.value = f"R$ {saldo_final:,.2f}"; self.kpi_saldo_valor.color = "#37474F" if saldo_final >= 0 else "#C62828"
+                self.kpi_poupanca_valor.value = f"{taxa_poupanca:.1f}%"; self.kpi_poupanca_valor.color = "#EF6C00" if taxa_poupanca >= 0 else "#C62828"
+                
                 # Preenche Tabela
                 resumo_data = resultado.get("resumo_mensal", {})
                 for mes, valores in resumo_data.items():
@@ -185,56 +212,37 @@ class AnalisadorApp:
                     ]))
                 
                 # Preenche Gráfico de Rosca
-                categorias_data = resultado.get("despesas_por_categoria", {})
-                cores = ["#42A5F5", "#EF5350", "#66BB6A", "#FFA726", "#AB47BC", "#8D6E63", "#EC407A", "#26A69A"]
-                total_despesas = sum(categorias_data.values()) or 1
-
+                categorias_data = resultado.get("despesas_por_categoria", {}); cores = ["#42A5F5", "#EF5350", "#66BB6A", "#FFA726", "#AB47BC", "#8D6E63", "#EC407A", "#26A69A"]; total_despesas = sum(categorias_data.values()) or 1
                 for i, (categoria, valor) in enumerate(categorias_data.items()):
                     porcentagem = (valor / total_despesas) * 100
                     self.grafico_categorias.sections.append(
-                        ft.PieChartSection(
-                            value=valor, title=f"{porcentagem:.1f}%",
-                            title_style=ft.TextStyle(size=12, weight=ft.FontWeight.BOLD, color="white"),
+                        ft.PieChartSection(value=valor, title=f"{porcentagem:.1f}%", title_style=ft.TextStyle(size=12, weight=ft.FontWeight.BOLD, color="white"),
                             color=cores[i % len(cores)], radius=80,
-                            badge=ft.Container(
-                                padding=ft.padding.all(5), border_radius=ft.border_radius.all(4),
-                                bgcolor="white70",
-                                content=ft.Text(f"{categoria}\nR$ {valor:,.2f}", size=12, text_align=ft.TextAlign.CENTER),
-                            ),
+                            badge=ft.Container(padding=ft.padding.all(5), border_radius=ft.border_radius.all(4), bgcolor="white70",
+                                content=ft.Text(f"{categoria}\nR$ {valor:,.2f}", size=12, text_align=ft.TextAlign.CENTER)),
                             badge_position=1,
                         )
                     )
                 
-                # Atualiza Gráficos Antigos e PDF
-                timestamp = f"?t={time.time()}"
-                self.grafico_barras.src = f"{API_URL}{resultado['urls']['grafico_barras']}{timestamp}"
-                self.grafico_pizza.src = f"{API_URL}{resultado['urls']['grafico_pizza']}{timestamp}"
-                self.link_pdf.url = f"{API_URL}{resultado['urls']['pdf_completo']}"
+               
+                timestamp = f"?t={time.time()}"; self.grafico_barras.src = f"{API_URL}{resultado['urls']['grafico_barras']}{timestamp}"; self.grafico_pizza.src = f"{API_URL}{resultado['urls']['grafico_pizza']}{timestamp}"; self.link_pdf.url = f"{API_URL}{resultado['urls']['pdf_completo']}"
                 self.card_resultados.visible = True
             else:
-                self.status_text.value = f"Erro na API: {resultado.get('erro', 'Erro desconhecido.')}"
-                self.status_text.color = "#D32F2F"
+                self.status_text.value = f"Erro na API: {resultado.get('erro', 'Erro desconhecido.')}"; self.status_text.color = "#D32F2F"
 
         except requests.exceptions.RequestException as ex:
-            self.status_text.value = f"Erro de conexão com a API: {ex}"
-            self.status_text.color = "#D32F2F"
+            self.status_text.value = f"Erro de conexão com a API: {ex}"; self.status_text.color = "#D32F2F"
         finally:
-            self.progress_bar.visible = False
-            self.botao_analisar.disabled = False
-            self.page.update()
-
+            self.progress_bar.visible = False; self.botao_analisar.disabled = False; self.page.update()
 
 def main(page: ft.Page):
     page.title = "Analisador Financeiro Inteligente"
     page.horizontal_alignment = ft.CrossAxisAlignment.CENTER
     page.scroll = ft.ScrollMode.ADAPTIVE
     page.theme_mode = ft.ThemeMode.LIGHT
-    page.fonts = { "Roboto": "https://cdnjs.cloudflare.com/ajax/libs/firacode/6.2.0/fira_code.ttf" }
+    page.fonts = { "Roboto": "https://fonts.google.com/specimen/Roboto" }
     page.theme = ft.Theme(font_family="Roboto", color_scheme_seed="#1976D2")
-    
-    # Apenas cria a instância da nossa classe principal.
     AnalisadorApp(page)
-    
     page.update()
 
 if __name__ == "__main__":
