@@ -1,18 +1,21 @@
+#bibliotecas para manipulação de dados e visualização
 import pandas as pd
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import seaborn as sns
+# modulos para lidar com datas, arquivos e PDF
 from datetime import datetime
 import os
 from fpdf import FPDF
+# componentes do flask para a api
 from flask import Flask, request, jsonify, send_from_directory
 from werkzeug.utils import secure_filename
 import re
 
 app = Flask(__name__)
 
-# Caminhos de pasta robustos
+#define e cria pastas para uploads e relatórios
 basedir = os.path.abspath(os.path.dirname(__file__))
 UPLOAD_FOLDER = os.path.join(basedir, 'uploads')
 OUTPUT_FOLDER = os.path.join(basedir, 'relatorios_gerados')
@@ -26,7 +29,7 @@ class Transacao: # classe base que representa qualquer transação financeira
         self.valor = float(valor) #valor da transação, pode ser + ou -
         self.categoria = categoria #classifca as transações
 
-    def tipo(self):
+    def tipo(self): #determina se a transação é receita ou despesa
         return "Receita" if self.valor > 0 else "Despesa"
 
 # classes receita e despesas herdam de transação
@@ -36,11 +39,11 @@ class Receita(Transacao):
 class Despesa(Transacao):
     pass
 
-class CarteiraFinanceira: #armazena e categoriza as transações
+class CarteiraFinanceira: #gerencia e organiza as transações
     def __init__(self):
-        self.transacoes = []
+        self.transacoes = [] #cria uma lista das transações
 
-    def _categorizar_transacao(self, descricao: str) -> str:
+    def _categorizar_transacao(self, descricao: str) -> str:  # função que categoriza uma transação com base na descrição
         descricao = descricao.lower()
         regras = {
             'Alimentação': ['ifood', 'restaurante', 'mercado', 'lanche', 'padaria', 'super'],
@@ -52,12 +55,12 @@ class CarteiraFinanceira: #armazena e categoriza as transações
         for categoria, palavras_chave in regras.items():
             if any(palavra in descricao for palavra in palavras_chave):
                 return categoria
-        return 'Outros'
+        return 'Outros' #categoria se nenhuma condição for satisfeita
 
     def obter_dataframe(self):
         dados = [{'Data': t.data, 'Descrição': t.descricao, 'Valor': t.valor, 'Tipo': t.tipo(), 'Categoria': t.categoria} for t in self.transacoes]
         return pd.DataFrame(dados)
-
+    # importa as transações a partir de um arquivo csv
     def importar_csv(self, caminho_do_arquivo):
         try:
             df = None
@@ -119,14 +122,14 @@ class CarteiraFinanceira: #armazena e categoriza as transações
 
         except Exception as e:
             raise ValueError(f"Erro ao processar o CSV: {e}")
-
+#classe que gera relatórios financeiros com base nas transações
 class RelatorioFinanceiro:
     def __init__(self, carteira: CarteiraFinanceira, id_relatorio: str):
         self.df = carteira.obter_dataframe()
         self.id_relatorio = id_relatorio
         self.pasta_saida = os.path.join(OUTPUT_FOLDER, id_relatorio)
         os.makedirs(self.pasta_saida, exist_ok=True)
-
+     # gera um resumo mensal com somatório de receitas e despesas
     def _get_resumo_mensal_df(self):
         df_copy = self.df.copy()
         df_copy['Mês'] = df_copy['Data'].dt.to_period('M').astype(str)
@@ -134,17 +137,17 @@ class RelatorioFinanceiro:
         if 'Receita' not in resumo: resumo['Receita'] = 0
         if 'Despesa' not in resumo: resumo['Despesa'] = 0
         return resumo
-
+    #retorna df com valores mensais
     def gerar_relatorio_mensal(self):
         return self._get_resumo_mensal_df()
-
+    #gera resumo com total por categoria de despesa
     def gerar_resumo_categorias(self):
         despesas_df = self.df[self.df['Tipo'] == 'Despesa']
         if despesas_df.empty:
             return {}
         resumo = despesas_df.groupby('Categoria')['Valor'].sum().abs().sort_values(ascending=False)
         return resumo.to_dict()
-
+     #calcula indicadores principais do período
     def gerar_kpis(self):
         if self.df.empty:
             return {'receita_total': 0, 'despesa_total': 0, 'saldo_final': 0, 'taxa_poupanca': 0}
@@ -161,12 +164,12 @@ class RelatorioFinanceiro:
             'saldo_final': saldo_final,
             'taxa_poupanca': taxa_poupanca
         }
-
+     #gera gráficos de barras, pizza e categorias e salva como imagem
     def gerar_graficos(self):
         resumo = self._get_resumo_mensal_df()
         plt.style.use('seaborn-v0_8-whitegrid')
         
-        # Gráfico de Barras
+        
         fig, ax = plt.subplots(figsize=(10, 6))
         resumo.plot(kind='bar', stacked=False, ax=ax, color={'Despesa': '#d9534f', 'Receita': '#5cb85c'})
         ax.set_title('Receitas vs Despesas por Mês', fontsize=16)
@@ -178,7 +181,7 @@ class RelatorioFinanceiro:
         fig.savefig(caminho_grafico_barras)
         plt.close(fig)
 
-        # Gráfico de Pizza
+        
         fig, ax = plt.subplots(figsize=(8, 8))
         tipos = self.df.groupby('Tipo')['Valor'].sum().abs()
         ax.pie(tipos, labels=tipos.index, autopct='%1.1f%%', colors=['#d9534f', '#5cb85c'], startangle=90)
@@ -309,3 +312,4 @@ def servir_relatorio(path):
 
 if __name__ == '__main__':
     app.run(debug=False, port=5000)
+
