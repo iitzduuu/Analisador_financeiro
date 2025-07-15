@@ -119,11 +119,6 @@ O sistema é flexível, mas para uma análise correta o CSV deve conter:
 
 ---
 
-## 📫 Contato
-Caso tenha dúvidas, sugestões ou queira contribuir:
-
-- [Eduardo Coutinho](www.linkedin.com/in/eduardo-coutinho-284516211)
-- [Atalla Silva](atalla.silva@ufba.br)
 
 
 
